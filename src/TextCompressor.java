@@ -28,22 +28,20 @@
  *  @author Zach Blick, SIERRA SHAW
  */
 public class TextCompressor {
+    // Bits per state
+    public static int letter_bits = 6;
+    public static int word_bits = 10;
+    public static int reg_bits = 8;
+    // Escape characters
+    public static int letter_to_reg = 59;
+    public static int reg_to_letter = 65;
+    public static int space = 58;
 
     private static void compress() {
-
-        // TODO: Complete the compress() method
-        // Assume the first bit is a letter
-        int currentBit = 0;
-        int letter_bits = 6;
-        int letter_to_reg = 58;
-        int reg_to_letter = 65;
-        int word_bits = 10;
-        int reg_bits = 8;
-        int state = 0;
         String toCompress = BinaryStdIn.readString();
         int compressLength = toCompress.length();
 
-        // Metadata: Write out length of String (number of words in String)
+        // Metadata: Write out length of String (number of words in String), we're assuming the first state is a letter
         BinaryStdOut.write(compressLength);
 
         int i = 0;
@@ -51,25 +49,30 @@ public class TextCompressor {
             int character = toCompress.charAt(i);
 
             // Read in each char, then map it to its 6-bit value
-            while (character >= 65 && character <= 122) {
-                // Convert so it can fit into a 6-bit number
-                character -= 'A';
+            while (character == 32 || (character >= 65 && character <= 122)) {
+                // Convert so it can fit into a 6-bit number, add one for the space since it's used so much
+                if (character == 32) {
+                    character = space;
+                }
+                else {
+                    character -= 'A';
+                }
                 BinaryStdOut.write(character, letter_bits);
+                // Go to next character
                 i += 1;
                 character = toCompress.charAt(i);
             }
             // Once it's not a letter, we need to write out an escape character to go to regular
             BinaryStdOut.write(letter_to_reg, letter_bits);
             while (character < 65 || character > 122) {
-                // Write out the escape character
+                // Otherwise, just write it as is in 8-bit binary
                 BinaryStdOut.write(character, reg_bits);
+                // Go to next character
                 i += 1;
                 character = toCompress.charAt(i);
             }
-            i += 1;
-
-            // Switch to next bit
-            currentBit = (currentBit + 1) % 2;
+            // Next escape character
+            BinaryStdOut.write(reg_to_letter, reg_bits);
         }
         BinaryStdOut.close();
     }
@@ -77,7 +80,34 @@ public class TextCompressor {
     private static void expand() {
 
         // TODO: Complete the expand() method
+        // Assume to start read in bits unless told otherwise
+        int strLength = BinaryStdIn.readInt();
+        int state = 0;
 
+        int i = 0;
+        while (i < strLength) {
+            int character = BinaryStdIn.readInt(letter_bits);
+            // In this state, keep reading until escape character
+            while (character != letter_to_reg) {
+                // Read in 6-bit sized data and convert to letter
+                if (character == space) {
+                    character = ' ';
+                }
+                else {
+                    character += 'A';
+                }
+                BinaryStdOut.write(character);
+                i += 1;
+                character = BinaryStdIn.readInt(letter_bits);
+            }
+
+            // Now we know it's looking for regular # of bits
+            while (character != reg_to_letter) {
+                BinaryStdOut.write(character);
+                i += 1;
+                character = BinaryStdIn.readInt(reg_bits);
+            }
+        }
         BinaryStdOut.close();
     }
 
