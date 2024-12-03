@@ -25,14 +25,52 @@
  *  The {@code TextCompressor} class provides static methods for compressing
  *  and expanding natural language through textfile input.
  *
- *  @author Zach Blick, YOUR NAME HERE
+ *  @author Zach Blick, SIERRA SHAW
  */
 public class TextCompressor {
 
     private static void compress() {
 
         // TODO: Complete the compress() method
+        // Assume the first bit is a letter
+        int currentBit = 0;
+        int letter_bits = 6;
+        int letter_to_reg = 58;
+        int reg_to_letter = 65;
+        int word_bits = 10;
+        int reg_bits = 8;
+        int state = 0;
+        String toCompress = BinaryStdIn.readString();
+        int compressLength = toCompress.length();
 
+        // Metadata: Write out length of String (number of words in String)
+        BinaryStdOut.write(compressLength);
+
+        int i = 0;
+        while (i < compressLength) {
+            int character = toCompress.charAt(i);
+
+            // Read in each char, then map it to its 6-bit value
+            while (character >= 65 && character <= 122) {
+                // Convert so it can fit into a 6-bit number
+                character -= 'A';
+                BinaryStdOut.write(character, letter_bits);
+                i += 1;
+                character = toCompress.charAt(i);
+            }
+            // Once it's not a letter, we need to write out an escape character to go to regular
+            BinaryStdOut.write(letter_to_reg, letter_bits);
+            while (character < 65 || character > 122) {
+                // Write out the escape character
+                BinaryStdOut.write(character, reg_bits);
+                i += 1;
+                character = toCompress.charAt(i);
+            }
+            i += 1;
+
+            // Switch to next bit
+            currentBit = (currentBit + 1) % 2;
+        }
         BinaryStdOut.close();
     }
 
