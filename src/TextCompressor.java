@@ -30,7 +30,7 @@
 public class TextCompressor {
     // Bits per state
     public static int letter_bits = 6;
-    public static int word_bits = 10;
+    // public static int word_bits = 10;
     public static int reg_bits = 8;
     // Escape characters
     public static int letter_to_reg = 59;
@@ -59,17 +59,33 @@ public class TextCompressor {
                 }
                 BinaryStdOut.write(character, letter_bits);
                 // Go to next character
-                i += 1;
-                character = toCompress.charAt(i);
+                if (i <= compressLength - 2) {
+                    i += 1;
+                    character = toCompress.charAt(i);
+                }
+                else {
+                    break;
+                }
             }
+
+            // Might be > compressLength - 1**
+            if (i >= compressLength) {
+                break;
+            }
+
             // Once it's not a letter, we need to write out an escape character to go to regular
             BinaryStdOut.write(letter_to_reg, letter_bits);
-            while (character < 65 || character > 122) {
+            while (character != 32 && (character < 65 || character > 122)) {
                 // Otherwise, just write it as is in 8-bit binary
                 BinaryStdOut.write(character, reg_bits);
                 // Go to next character
-                i += 1;
-                character = toCompress.charAt(i);
+                if (i <= compressLength - 2) {
+                    i += 1;
+                    character = toCompress.charAt(i);
+                }
+                else {
+                    break;
+                }
             }
             // Next escape character
             BinaryStdOut.write(reg_to_letter, reg_bits);
@@ -78,8 +94,6 @@ public class TextCompressor {
     }
 
     private static void expand() {
-
-        // TODO: Complete the expand() method
         // Assume to start read in bits unless told otherwise
         int strLength = BinaryStdIn.readInt();
         int state = 0;
@@ -97,15 +111,30 @@ public class TextCompressor {
                     character += 'A';
                 }
                 BinaryStdOut.write(character);
-                i += 1;
-                character = BinaryStdIn.readInt(letter_bits);
+                if (i <= strLength - 2) {
+                    i += 1;
+                    character = BinaryStdIn.readInt(letter_bits);
+                }
+                else {
+                    break;
+                }
+            }
+
+            if (i >= strLength) {
+                break;
             }
 
             // Now we know it's looking for regular # of bits
             while (character != reg_to_letter) {
                 BinaryStdOut.write(character);
-                i += 1;
-                character = BinaryStdIn.readInt(reg_bits);
+                // Go to next character
+                if (i <= strLength - 2) {
+                    i += 1;
+                    character = BinaryStdIn.readInt(reg_bits);
+                }
+                else {
+                    break;
+                }
             }
         }
         BinaryStdOut.close();
