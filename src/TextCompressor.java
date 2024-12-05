@@ -40,12 +40,13 @@ public class TextCompressor {
     private static void compress() {
         String toCompress = BinaryStdIn.readString();
         int compressLength = toCompress.length();
+        boolean atEnd = false;
 
         // Metadata: Write out length of String (number of words in String), we're assuming the first state is a letter
         BinaryStdOut.write(compressLength);
 
         int i = 0;
-        while (i < compressLength) {
+        while (!atEnd) {
             int character = toCompress.charAt(i);
 
             // Read in each char, then map it to its 6-bit value
@@ -64,12 +65,14 @@ public class TextCompressor {
                     character = toCompress.charAt(i);
                 }
                 else {
+                    atEnd = true;
                     break;
                 }
             }
 
             // Might be > compressLength - 1**
             if (i >= compressLength) {
+                atEnd = true;
                 break;
             }
 
@@ -84,6 +87,7 @@ public class TextCompressor {
                     character = toCompress.charAt(i);
                 }
                 else {
+                    atEnd = true;
                     break;
                 }
             }
@@ -96,46 +100,57 @@ public class TextCompressor {
     private static void expand() {
         // Assume to start read in bits unless told otherwise
         int strLength = BinaryStdIn.readInt();
+        boolean atEnd = false;
         int state = 0;
 
         int i = 0;
-        while (i < strLength) {
-            int character = BinaryStdIn.readInt(letter_bits);
+        int character = BinaryStdIn.readInt(letter_bits);
+        while (!atEnd) {
             // In this state, keep reading until escape character
             while (character != letter_to_reg) {
                 // Read in 6-bit sized data and convert to letter
-                if (character == space) {
-                    character = ' ';
+                if (character != reg_to_letter) {
+                    if (character == space) {
+                        character = ' ';
+                    } else {
+                        character += 'A';
+                    }
+                    BinaryStdOut.write(character);
                 }
-                else {
-                    character += 'A';
-                }
-                BinaryStdOut.write(character);
                 if (i <= strLength - 2) {
                     i += 1;
                     character = BinaryStdIn.readInt(letter_bits);
                 }
                 else {
+                    atEnd = true;
                     break;
                 }
             }
 
+            // If it's an escape character, shouldn't count as length of String
+            i -= 1;
+
             if (i >= strLength) {
+                atEnd = true;
                 break;
             }
 
             // Now we know it's looking for regular # of bits
             while (character != reg_to_letter) {
-                BinaryStdOut.write(character);
+                if (character != letter_to_reg) {
+                    BinaryStdOut.write(character);
+                }
                 // Go to next character
                 if (i <= strLength - 2) {
                     i += 1;
                     character = BinaryStdIn.readInt(reg_bits);
                 }
                 else {
+                    atEnd = true;
                     break;
                 }
             }
+            i -= 1;
         }
         BinaryStdOut.close();
     }
