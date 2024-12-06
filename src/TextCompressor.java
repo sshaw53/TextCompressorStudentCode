@@ -28,129 +28,69 @@
  *  @author Zach Blick, SIERRA SHAW
  */
 public class TextCompressor {
-    // Bits per state
-    public static int letter_bits = 6;
-    // public static int word_bits = 10;
-    public static int reg_bits = 8;
-    // Escape characters
-    public static int letter_to_reg = 59;
-    public static int reg_to_letter = 65;
-    public static int space = 58;
+    public static int total_bits = 12;
 
     private static void compress() {
+        TST trie = new TST();
         String toCompress = BinaryStdIn.readString();
         int compressLength = toCompress.length();
-        boolean atEnd = false;
+        int extraCode = 81;
+        int maxCode = 4095;
+        int endOfFile = 80;
+        String next_prefix;
 
-        // Metadata: Write out length of String (number of words in String), we're assuming the first state is a letter
-        BinaryStdOut.write(compressLength);
-
+        // Go through each letter in the String
         int i = 0;
-        while (!atEnd) {
-            int character = toCompress.charAt(i);
+        while (i < compressLength) {
+            // Get the longest prefix with my index & its code
+            String prefix = trie.getLongestPrefix(toCompress, i);
+            int currentCode = trie.lookup(prefix);
 
-            // Read in each char, then map it to its 6-bit value
-            while (character == 32 || (character >= 65 && character <= 122)) {
-                // Convert so it can fit into a 6-bit number, add one for the space since it's used so much
-                if (character == 32) {
-                    character = space;
+            // If the code doesn't exist (if it's a character), add to trie if possible and just set currentCode to the
+            // character's ascii value
+            if (currentCode == -1) {
+                if (extraCode <= maxCode) {
+                    trie.insert(prefix, prefix.charAt(0));
                 }
-                else {
-                    character -= 'A';
-                }
-                BinaryStdOut.write(character, letter_bits);
-                // Go to next character
-                if (i <= compressLength - 2) {
-                    i += 1;
-                    character = toCompress.charAt(i);
-                }
-                else {
-                    atEnd = true;
-                    break;
-                }
+                currentCode = prefix.charAt(0);
             }
 
-            // Might be > compressLength - 1**
-            if (i >= compressLength) {
-                atEnd = true;
-                break;
+            BinaryStdOut.write(currentCode, total_bits);
+            // If possible, go to the next character and add it to the trie
+            if (extraCode <= maxCode && i < compressLength - 1) {
+                next_prefix = prefix + toCompress.charAt(i + 1);
+                trie.insert(next_prefix, extraCode);
+                extraCode += 1;
             }
-
-            // Once it's not a letter, we need to write out an escape character to go to regular
-            BinaryStdOut.write(letter_to_reg, letter_bits);
-            while (character != 32 && (character < 65 || character > 122)) {
-                // Otherwise, just write it as is in 8-bit binary
-                BinaryStdOut.write(character, reg_bits);
-                // Go to next character
-                if (i <= compressLength - 2) {
-                    i += 1;
-                    character = toCompress.charAt(i);
-                }
-                else {
-                    atEnd = true;
-                    break;
-                }
-            }
-            // Next escape character
-            BinaryStdOut.write(reg_to_letter, reg_bits);
+            i += prefix.length();
         }
+
+        // Writing out the end of file
+        BinaryStdOut.write(endOfFile, total_bits);
         BinaryStdOut.close();
     }
 
     private static void expand() {
-        // Assume to start read in bits unless told otherwise
-        int strLength = BinaryStdIn.readInt();
-        boolean atEnd = false;
-        int state = 0;
+        TST trie = new TST();
+        int extraCode = 81;
+        int maxCode = 4095;
+        int currentCode = 0;
+        int endOfFile = 80;
+        int peekCode;
+        String next_prefix;
+        String peekString;
 
-        int i = 0;
-        int character = BinaryStdIn.readInt(letter_bits);
-        while (!atEnd) {
-            // In this state, keep reading until escape character
-            while (character != letter_to_reg) {
-                // Read in 6-bit sized data and convert to letter
-                if (character != reg_to_letter) {
-                    if (character == space) {
-                        character = ' ';
-                    } else {
-                        character += 'A';
-                    }
-                    BinaryStdOut.write(character);
-                }
-                if (i <= strLength - 2) {
-                    i += 1;
-                    character = BinaryStdIn.readInt(letter_bits);
-                }
-                else {
-                    atEnd = true;
-                    break;
-                }
+        while (currentCode != endOfFile) {
+            currentCode = BinaryStdIn.readInt(total_bits);
+            String decoded = "";
+            peekCode = BinaryStdIn.readInt(total_bits);
+            peekString = "";
+
+            if (extraCode <= maxCode && peekCode != endOfFile) {
+                next_prefix = decoded + peekString.charAt(0);
+                trie.insert(next_prefix, extraCode);
+                extraCode += 1;
             }
-
-            // If it's an escape character, shouldn't count as length of String
-            i -= 1;
-
-            if (i >= strLength) {
-                atEnd = true;
-                break;
-            }
-
-            // Now we know it's looking for regular # of bits
-            while (character != reg_to_letter) {
-                if (character != letter_to_reg) {
-                    BinaryStdOut.write(character);
-                }
-                // Go to next character
-                if (i <= strLength - 2) {
-                    i += 1;
-                    character = BinaryStdIn.readInt(reg_bits);
-                }
-                else {
-                    atEnd = true;
-                    break;
-                }
-            }
-            i -= 1;
         }
         BinaryStdOut.close();
     }
