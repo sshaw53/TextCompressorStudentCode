@@ -34,44 +34,38 @@ public class TextCompressor {
         TST trie = new TST();
         String toCompress = BinaryStdIn.readString();
         int compressLength = toCompress.length();
-        int extraCode = 81;
+        int extraCode = 257;
         int maxCode = 4095;
-        int endOfFile = 80;
+        int endOfFile = 256;
         String next_prefix;
         int currentCode;
+
+        // Adding all single character ASCII values from 0 to 255
+        for (int i = 0; i < 256; i++) {
+            trie.insert("" + (char)i, i);
+        }
 
         // Go through each letter in the String
         int i = 0;
         while (i < compressLength) {
-            // Get the longest prefix with the index
+            // Get the longest prefix with the index and set current code using the prefix
             String prefix = trie.getLongestPrefix(toCompress, i);
-
-            // If the largest prefix is a character, just set currentCode to the character's ascii value, if not,
-            // search the TST
-            if (prefix.length() == 1) {
-                currentCode = prefix.charAt(0);
-            }
-            // In the case that the character isn't in the TST
-            else if (prefix.isEmpty()) {
-                currentCode = toCompress.charAt(i);
-                prefix = "" +  toCompress.charAt(i);
-            }
-            else {
-                currentCode = trie.lookup(prefix);
-            }
+            currentCode = trie.lookup(prefix);
 
             // Write to file
             BinaryStdOut.write(currentCode, total_bits);
 
+            int current_spot = i + prefix.length();
+
             // If possible, go to the next character and add it to the TST
-            if (extraCode <= maxCode && i < compressLength - 1) {
-                next_prefix = prefix + toCompress.charAt(i + 1);
+            if (extraCode <= maxCode && current_spot < compressLength) {
+                next_prefix = prefix + toCompress.charAt(current_spot);
                 trie.insert(next_prefix, extraCode);
                 extraCode += 1;
             }
 
             // Increase i based on original prefix looked at
-            i += prefix.length();
+            i = current_spot;
         }
 
         // Writing out the end of file
@@ -80,9 +74,9 @@ public class TextCompressor {
     }
 
     private static void expand() {
-        int extraCode = 81;
+        int extraCode = 257;
         int maxCode = 4095;
-        int endOfFile = 80;
+        int endOfFile = 256;
         int peekCode;
         String[] key = new String[maxCode + 1];
         String next_prefix;
@@ -90,15 +84,15 @@ public class TextCompressor {
         String decoded;
         int currentCode = BinaryStdIn.readInt(total_bits);
 
-        // Until we've reached the end of the string
+        // Add all characters of ASCII values 0-255 to the map
+        for (int i = 0; i < 256; i++) {
+            key[i] = "" + (char)i;
+        }
+
+        // Until we've reached the end of the String
         while (currentCode != endOfFile) {
-            // If the code read in is just a letter, set decoded to be the letter, if not search TST for code
-            if (currentCode <= 127) {
-                decoded = "" + currentCode;
-            }
-            else {
-                decoded = key[currentCode];
-            }
+            // Search map for code
+            decoded = key[currentCode];
 
             // Write to file and look at next code
             BinaryStdOut.write(decoded);
@@ -106,9 +100,16 @@ public class TextCompressor {
 
             // If possible, add the first letter of the lookahead String to decoded and add to the TST
             if (extraCode <= maxCode && peekCode != endOfFile) {
-                // Find a way to get the peekString, search TST for peekCode
-                peekString = "FIND";
-                next_prefix = decoded + peekString.charAt(0);
+                peekString = key[peekCode];
+                // If it's an empty slot, we know to avoid this edge case by adding the current prefix plus the first
+                // letter of the prefix
+                if (peekString == null) {
+                    next_prefix = decoded + decoded.charAt(0);
+                }
+                else {
+                    next_prefix = decoded + peekString.charAt(0);
+                }
+
                 key[extraCode] = next_prefix;
                 extraCode += 1;
             }
